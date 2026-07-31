@@ -1,5 +1,9 @@
 command-line-options:
   no-app:
   dictionary: ../../build-artifacts/aarch64-linux/FprimeSoakTestReference_FprimeSoakTestReferenceDeployment/dict/FprimeSoakTestReferenceDeploymentTopologyDictionary.json
-  ip-address: 0.0.0.0
-  ip-port: 50000
+  communication-selection: uart
+  uart-device: /dev/cu.usbmodem11101
+  uart-baud: 115200
+  framing-selection: raw-space-packet
+  gui-port: 5011
+  no-zmq:
