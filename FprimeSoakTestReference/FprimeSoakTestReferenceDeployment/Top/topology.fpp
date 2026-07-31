@@ -5,9 +5,9 @@ module FprimeSoakTestReference {
   # ----------------------------------------------------------------------
 
   enum Ports_RateGroups {
-    rateGroup1
-    rateGroup2
-    rateGroup3
+    rateGroup1KHz
+    rateGroup10Hz
+    rateGroup1Hz
   }
 
   topology FprimeSoakTestReferenceDeployment {
@@ -16,24 +16,26 @@ module FprimeSoakTestReference {
   # Subtopology imports
   # ----------------------------------------------------------------------
     import CdhCore.Subtopology
-    import ComCcsds.Subtopology
+    # Space-packet layer only (no TM/TC transfer frames). Rfm69Manager is the
+    # sole Svc.Com adapter for the packet radio (no TCP / ComStub).
+    import ComCcsds.SpacePacketFraming
     import DataProducts.Subtopology
     import DpCompression.Subtopology
     import FileHandling.Subtopology
     import MpuImu.Subtopology
     import Bmp280.Subtopology
+    import Rfm69.Subtopology
 
   # ----------------------------------------------------------------------
   # Instances used in the topology
   # ----------------------------------------------------------------------
     instance chronoTime
-    instance rateGroup1
-    instance rateGroup2
-    instance rateGroup3
+    instance rateGroup1KHz
+    instance rateGroup10Hz
+    instance rateGroup1Hz
     instance rateGroupDriver
     instance systemResources
     instance timer
-    instance comDriver
     instance cmdSeq
     instance sensorDataProducer
 
@@ -67,7 +69,6 @@ module FprimeSoakTestReference {
       # Router to Command Dispatcher
       ComCcsds.fprimeRouter.commandOut -> CdhCore.cmdDisp.seqCmdBuff
       CdhCore.cmdDisp.seqCmdStatus -> ComCcsds.fprimeRouter.cmdResponseIn
-      
     }
 
     connections ComCcsds_FileHandling {
@@ -81,17 +82,18 @@ module FprimeSoakTestReference {
     }
 
     connections Communications {
-      # ComDriver buffer allocations
-      comDriver.allocate      -> ComCcsds.commsBufferManager.bufferGetCallee
-      comDriver.deallocate    -> ComCcsds.commsBufferManager.bufferSendIn
-      
-      # ComDriver <-> ComStub (Uplink)
-      comDriver.$recv                     -> ComCcsds.comStub.drvReceiveIn
-      ComCcsds.comStub.drvReceiveReturnOut -> comDriver.recvReturnIn
-      
-      # ComStub <-> ComDriver (Downlink)
-      ComCcsds.comStub.drvSendOut      -> comDriver.$send
-      comDriver.ready         -> ComCcsds.comStub.drvConnected
+      # RFM69 manager buffer allocations
+      Rfm69.rfm69Manager.allocate   -> ComCcsds.commsBufferManager.bufferGetCallee
+      Rfm69.rfm69Manager.deallocate -> ComCcsds.commsBufferManager.bufferSendIn
+
+      # Aggregated space packets <-> RFM69 (Downlink)
+      ComCcsds.SpacePacketFraming.dataOut       -> Rfm69.rfm69Manager.dataIn
+      Rfm69.rfm69Manager.dataReturnOut          -> ComCcsds.SpacePacketFraming.dataReturnIn
+      Rfm69.rfm69Manager.comStatusOut           -> ComCcsds.SpacePacketFraming.comStatusIn
+
+      # RFM69 <-> SpacePacketDeframer (Uplink; one complete SP per RF packet)
+      Rfm69.rfm69Manager.dataOut                -> ComCcsds.SpacePacketFraming.dataIn
+      ComCcsds.SpacePacketFraming.dataReturnOut -> Rfm69.rfm69Manager.dataReturnIn
     }
 
     connections FileHandling_DataProducts {
@@ -107,28 +109,31 @@ module FprimeSoakTestReference {
       # timer to drive rate group
       timer.CycleOut -> rateGroupDriver.CycleIn
 
-      # Rate group 1 (1KHz): Command sequencer
-      rateGroupDriver.CycleOut[Ports_RateGroups.rateGroup1] -> rateGroup1.CycleIn
-      rateGroup1.RateGroupMemberOut[0] -> cmdSeq.schedIn
+      # Rate group 1KHz: Command sequencer + RFM69 RX poll
+      rateGroupDriver.CycleOut[Ports_RateGroups.rateGroup1KHz] -> rateGroup1KHz.CycleIn
+      rateGroup1KHz.RateGroupMemberOut[0] -> cmdSeq.schedIn
+      rateGroup1KHz.RateGroupMemberOut[1] -> Rfm69.rfm69Manager.run
 
-      # Rate group 2 (10Hz): Sensors, telemetry packetization, and communications.
-      rateGroupDriver.CycleOut[Ports_RateGroups.rateGroup2] -> rateGroup2.CycleIn
-      rateGroup2.RateGroupMemberOut[0] -> Bmp280.bmpManager.run
-      rateGroup2.RateGroupMemberOut[1] -> MpuImu.imuManager.run
-      rateGroup2.RateGroupMemberOut[2] -> FileHandling.fileDownlink.Run
-      rateGroup2.RateGroupMemberOut[3] -> ComCcsds.comQueue.run
-      rateGroup2.RateGroupMemberOut[4] -> ComCcsds.aggregator.timeout
-      rateGroup2.RateGroupMemberOut[5] -> CdhCore.tlmSend.Run
+      # Rate group 10Hz: Sensors, file downlink
+      rateGroupDriver.CycleOut[Ports_RateGroups.rateGroup10Hz] -> rateGroup10Hz.CycleIn
+      rateGroup10Hz.RateGroupMemberOut[0] -> Bmp280.bmpManager.run
+      rateGroup10Hz.RateGroupMemberOut[1] -> MpuImu.imuManager.run
+      rateGroup10Hz.RateGroupMemberOut[2] -> FileHandling.fileDownlink.Run
 
-      # Rate group 3 (1Hz): Housekeeping and health monitoring
-      rateGroupDriver.CycleOut[Ports_RateGroups.rateGroup3] -> rateGroup3.CycleIn
-      rateGroup3.RateGroupMemberOut[0] -> CdhCore.$health.Run
-      rateGroup3.RateGroupMemberOut[1] -> systemResources.run
-      rateGroup3.RateGroupMemberOut[2] -> ComCcsds.commsBufferManager.schedIn
-      rateGroup3.RateGroupMemberOut[3] -> DataProducts.dpBufferManager.schedIn
-      rateGroup3.RateGroupMemberOut[4] -> DataProducts.dpWriter.schedIn
-      rateGroup3.RateGroupMemberOut[5] -> DataProducts.dpMgr.schedIn
-      rateGroup3.RateGroupMemberOut[6] -> DpCompression.Subtopology.dpZLibBufferManagerSchedIn
+      # Rate group 1Hz: Housekeeping, ComQueue, telemetry, and aggregator flush.
+      # Aggregator timeout at 1 Hz lets space packets fill toward the RF MTU
+      # before TX (fewer half-empty packets at 19.2 kbps).
+      rateGroupDriver.CycleOut[Ports_RateGroups.rateGroup1Hz] -> rateGroup1Hz.CycleIn
+      rateGroup1Hz.RateGroupMemberOut[0] -> CdhCore.$health.Run
+      rateGroup1Hz.RateGroupMemberOut[1] -> systemResources.run
+      rateGroup1Hz.RateGroupMemberOut[2] -> ComCcsds.commsBufferManager.schedIn
+      rateGroup1Hz.RateGroupMemberOut[3] -> DataProducts.dpBufferManager.schedIn
+      rateGroup1Hz.RateGroupMemberOut[4] -> DataProducts.dpWriter.schedIn
+      rateGroup1Hz.RateGroupMemberOut[5] -> DataProducts.dpMgr.schedIn
+      rateGroup1Hz.RateGroupMemberOut[6] -> DpCompression.Subtopology.dpZLibBufferManagerSchedIn
+      rateGroup1Hz.RateGroupMemberOut[7] -> ComCcsds.comQueue.run
+      rateGroup1Hz.RateGroupMemberOut[8] -> CdhCore.tlmSend.Run
+      rateGroup1Hz.RateGroupMemberOut[9] -> ComCcsds.aggregator.timeout
     }
 
     connections CdhCore_cmdSeq {

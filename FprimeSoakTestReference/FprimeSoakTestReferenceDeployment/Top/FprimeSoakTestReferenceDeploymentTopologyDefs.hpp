@@ -26,9 +26,10 @@
 // Include autocoded FPP constants
 #include "FprimeSoakTestReference/FprimeSoakTestReferenceDeployment/Top/FppConstantsAc.hpp"
 
-// MpuImu, Bmp280 Subtopology includes
+// MpuImu, Bmp280, Rfm69 Subtopology includes
 #include "fprime-sensors/MpuImu/Subtopology/SubtopologyTopologyDefs.hpp"
 #include "fprime-sensors/Bmp280/Subtopology/SubtopologyTopologyDefs.hpp"
+#include "fprime-sensors/Rfm69/Subtopology/SubtopologyTopologyDefs.hpp"
 
 /**
  * \brief required ping constants
@@ -50,9 +51,9 @@
  * ```
  */
 namespace PingEntries {
-    namespace FprimeSoakTestReference_rateGroup1 {enum { WARN = 3, FATAL = 5 };}
-    namespace FprimeSoakTestReference_rateGroup2 {enum { WARN = 3, FATAL = 5 };}
-    namespace FprimeSoakTestReference_rateGroup3 {enum { WARN = 3, FATAL = 5 };}
+    namespace FprimeSoakTestReference_rateGroup1KHz {enum { WARN = 3, FATAL = 5 };}
+    namespace FprimeSoakTestReference_rateGroup10Hz {enum { WARN = 3, FATAL = 5 };}
+    namespace FprimeSoakTestReference_rateGroup1Hz {enum { WARN = 3, FATAL = 5 };}
     namespace FprimeSoakTestReference_cmdSeq {enum { WARN = 3, FATAL = 5 };}
 }  // namespace PingEntries
 
@@ -67,8 +68,6 @@ namespace FprimeSoakTestReference {
  * contents are entirely up to the definition of the project. This deployment uses subtopologies.
  */
 struct TopologyState {
-    const char* hostname;  //!< Hostname/IP address for TCP communication
-    U16 port;              //!< Port number for TCP communication
     CdhCore::SubtopologyState cdhCore;           //!< Subtopology state for CdhCore
     ComCcsds::SubtopologyState comCcsds;         //!< Subtopology state for ComCcsds
     DataProducts::SubtopologyState dataProducts;     //!< Subtopology state for DataProducts
@@ -76,6 +75,7 @@ struct TopologyState {
     FileHandling::SubtopologyState fileHandling;     //!< Subtopology state for FileHandling
     MpuImu::SubtopologyState mpu;                    //!< Subtopology state for MpuImu
     Bmp280::SubtopologyState bmp;                    //!< Subtopology state for Bmp280
+    Rfm69::SubtopologyState rfm69;                   //!< Subtopology state for Rfm69
 };
 
 namespace PingEntries = ::PingEntries;
