@@ -1,49 +1,49 @@
 telemetry packets FprimeSoakTestReferenceDeploymentPackets {
 
-  packet SensorMediumRate id 3 group 1 {
+  # Group 1 = default radio load (setPacketList level 1). Keep lean for 19.2 kbps.
+  packet SensorMediumRate id 3 group 2 {
     FprimeSoakTestReference.sensorDataProducer.DpActive
   }
 
+  # Lean group-1 CDH for radio soak: queue depth + cmd/health timing only.
   packet CDH id 1 group 1 {
     CdhCore.cmdDisp.CommandsDispatched
     CdhCore.cmdDisp.CommandsDropped
-
-    FileHandling.fileUplink.FilesReceived
-    FileHandling.fileUplink.PacketsReceived
-    FileHandling.fileDownlink.FilesSent
-    FileHandling.fileDownlink.PacketsSent
-    FileHandling.fileManager.CommandsExecuted
-
-    FprimeSoakTestReference.cmdSeq.CS_LoadCommands
-    FprimeSoakTestReference.cmdSeq.CS_CancelCommands
-    FprimeSoakTestReference.cmdSeq.CS_CommandsExecuted
-    FprimeSoakTestReference.cmdSeq.CS_SequencesCompleted
     ComCcsds.comQueue.comQueueDepth
     ComCcsds.comQueue.buffQueueDepth
     ComCcsds.commsBufferManager.TotalBuffs
     ComCcsds.commsBufferManager.CurrBuffs
     ComCcsds.commsBufferManager.HiBuffs
-
-    FprimeSoakTestReference.rateGroup1.RgMaxTime
-    FprimeSoakTestReference.rateGroup2.RgMaxTime
-    FprimeSoakTestReference.rateGroup3.RgMaxTime
+    FprimeSoakTestReference.rateGroup1KHz.RgMaxTime
+    FprimeSoakTestReference.rateGroup10Hz.RgMaxTime
+    FprimeSoakTestReference.rateGroup1Hz.RgMaxTime
   }
 
   packet CDHErrors id 2 group 1 {
     CdhCore.$health.PingLateWarnings
     CdhCore.events.EventsDropped
+    ComCcsds.commsBufferManager.NoBuffs
+    ComCcsds.commsBufferManager.EmptyBuffs
+    FprimeSoakTestReference.rateGroup1KHz.RgCycleSlips
+    FprimeSoakTestReference.rateGroup10Hz.RgCycleSlips
+    FprimeSoakTestReference.rateGroup1Hz.RgCycleSlips
+  }
 
+  # File / sequencer housekeeping — off default radio level (group 2+)
+  packet FileSeq id 4 group 2 {
+    FileHandling.fileUplink.FilesReceived
+    FileHandling.fileUplink.PacketsReceived
+    FileHandling.fileDownlink.FilesSent
+    FileHandling.fileDownlink.PacketsSent
+    FileHandling.fileManager.CommandsExecuted
+    FprimeSoakTestReference.cmdSeq.CS_LoadCommands
+    FprimeSoakTestReference.cmdSeq.CS_CancelCommands
+    FprimeSoakTestReference.cmdSeq.CS_CommandsExecuted
+    FprimeSoakTestReference.cmdSeq.CS_SequencesCompleted
     FileHandling.fileUplink.Warnings
     FileHandling.fileDownlink.Warnings
     FileHandling.fileManager.Errors
-
     FprimeSoakTestReference.cmdSeq.CS_Errors
-    ComCcsds.commsBufferManager.NoBuffs
-    ComCcsds.commsBufferManager.EmptyBuffs
-
-    FprimeSoakTestReference.rateGroup1.RgCycleSlips
-    FprimeSoakTestReference.rateGroup2.RgCycleSlips
-    FprimeSoakTestReference.rateGroup3.RgCycleSlips
   }
 
   packet SystemRes1 id 5 group 2 {
@@ -178,6 +178,12 @@ telemetry packets FprimeSoakTestReferenceDeploymentPackets {
     MpuImu.imuManager.Reading
   }
 
+  packet Radio id 39 group 1 {
+    Rfm69.rfm69Manager.PacketsTransmitted
+    Rfm69.rfm69Manager.PacketsReceived
+    Rfm69.rfm69Manager.LastRssi
+  }
+
 } omit {
   # Omit unused command dispatcher errors
   CdhCore.cmdDisp.CommandErrors
@@ -188,4 +194,8 @@ telemetry packets FprimeSoakTestReferenceDeploymentPackets {
 
   # Omit low-level driver telemetry
   Bmp280.bmpDriver.SPI_Bytes
+  Rfm69.spiDriver.SPI_Bytes
+
+  #idk just build plz
+  FprimeSoakTestReference.cmdSeq.CS_CurrentSequence
 }

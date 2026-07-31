@@ -11,8 +11,6 @@
 #include <signal.h>
 // Used for command line argument processing
 #include <getopt.h>
-// Used for atoi
-#include <cstdlib>
 // Used for logging to the console
 #include <Fw/Logger/Logger.hpp>
 
@@ -24,7 +22,7 @@
  * @param app: name of application
  */
 void print_usage(const char* app) {
-    Fw::Logger::log("Usage: ./%s [options]\n-a\tHostname/IP address\n-p\tPort number\n", app);
+    Fw::Logger::log("Usage: ./%s [options]\n-h\tHelp\n", app);
 }
 
 /**
@@ -42,8 +40,8 @@ static void signalHandler(int signum) {
 /**
  * \brief execute the program
  *
- * This F´ program is designed to run in standard environments (e.g. Linux/macOs running on a laptop). Thus it uses
- * command line inputs to specify how to connect.
+ * Communications use the RFM69 radio (Rfm69Manager) exclusively; no TCP
+ * hostname/port arguments are required.
  *
  * @param argc: argument count supplied to program
  * @param argv: argument values supplied to program
@@ -51,39 +49,26 @@ static void signalHandler(int signum) {
  */
 int main(int argc, char* argv[]) {
     I32 option = 0;
-    CHAR* hostname = nullptr;
-    U16 port_number = 0;
 
     Os::init();
 
     // Loop while reading the getopt supplied options
-    while ((option = getopt(argc, argv, "ha:p:")) != -1) {
+    while ((option = getopt(argc, argv, "h")) != -1) {
         switch (option) {
-            // Handle the -a hostname/IP address argument
-            case 'a':
-                hostname = optarg;
-                break;
-            // Handle the -p port number argument
-            case 'p':
-                port_number = static_cast<U16>(atoi(optarg));
-                break;
-            // Cascade intended: help output
             case 'h':
-            // Cascade intended: help output
+                print_usage(argv[0]);
+                return 0;
             case '?':
-            // Default case: output help and exit
             default:
                 print_usage(argv[0]);
-                return (option == 'h') ? 0 : 1;
+                return 1;
         }
     }
     // Object for communicating state to the topology
     FprimeSoakTestReference::TopologyState inputs;
-    inputs.hostname = hostname;
-    inputs.port = port_number;
     inputs.mpu.device = "/dev/i2c-1";
     inputs.bmp.device.device = 0; // SPI bus 0
-    inputs.bmp.device.select = 0; // SPI chip select 0, NOTE: check wiring on board for correct chip select
+    inputs.bmp.device.select = 0; // SPI chip select 0 (RFM69 uses CS1)
 
     // Setup program shutdown via Ctrl-C
     signal(SIGINT, signalHandler);
@@ -92,7 +77,7 @@ int main(int argc, char* argv[]) {
 
     // Setup, cycle, and teardown topology
     FprimeSoakTestReference::setupTopology(inputs);
-    FprimeSoakTestReference::startRateGroups(Fw::TimeInterval(0, 1000));  // Program loop cycling rate groups at 100Hz
+    FprimeSoakTestReference::startRateGroups(Fw::TimeInterval(0, 1000));  // Program loop cycling rate groups at 1KHz
     FprimeSoakTestReference::teardownTopology(inputs);
     Fw::Logger::log("Exiting...\n");
     return 0;
