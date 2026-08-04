@@ -65,8 +65,11 @@ void setupTopology(const TopologyState& state) {
     // Autocoded configuration. Function provided by autocoder.
     configComponents(state);
     // Project-specific component configuration. Function provided above. May be inlined, if desired.
+    // Must run before readParameters() so prmDb has a configured file path.
     configureTopology();
-    // Autocoded parameter loading. Function provided by autocoder.
+    // Autocoded: load PrmDb.dat into FileHandling::prmDb (from FileHandling.fpp phase).
+    readParameters();
+    // Autocoded: each component requests its parameters from prmDb.
     loadParameters();
     // Autocoded task kick-off (active components). Function provided by autocoder.
     startTasks(state);

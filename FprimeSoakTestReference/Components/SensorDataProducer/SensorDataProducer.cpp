@@ -9,9 +9,24 @@
 namespace Components {
 
 SensorDataProducer::SensorDataProducer(const char* const compName)
-    : SensorDataProducerComponentBase(compName), m_active(false), m_containerValid(false), m_count(0) {}
+    : SensorDataProducerComponentBase(compName),
+      m_active(false),
+      m_containerValid(false),
+      m_loggedAllocFail(false),
+      m_count(0),
+      m_bmpStride(0),
+      m_imuStride(0) {}
 
 SensorDataProducer::~SensorDataProducer() {}
+
+bool SensorDataProducer::takeSample(U32& counter) {
+    counter++;
+    if (counter < SAMPLE_STRIDE) {
+        return false;
+    }
+    counter = 0;
+    return true;
+}
 
 bool SensorDataProducer::ensureContainer() {
     if (this->m_containerValid) {
@@ -23,9 +38,14 @@ bool SensorDataProducer::ensureContainer() {
     const FwSizeType dpSize = RECORD_COUNT * imuSize;
 
     if (this->dpGet_SensorDataContainer(dpSize, this->m_container) != Fw::Success::SUCCESS) {
-        this->log_WARNING_HI_DpMemoryFail();
+        // One EVR per outage — not one per sensor tick (that saturates RF).
+        if (!this->m_loggedAllocFail) {
+            this->log_WARNING_HI_DpMemoryFail();
+            this->m_loggedAllocFail = true;
+        }
         return false;
     }
+    this->m_loggedAllocFail = false;
     this->m_container.setProcTypes(
         static_cast<Fw::DpCfg::ProcType::SerialType>(Fw::DpCfg::ProcType::PROC_TYPE_ZLIB_DEFLATE));
     this->m_containerValid = true;
@@ -45,7 +65,7 @@ void SensorDataProducer::recordWritten() {
 }
 
 void SensorDataProducer::bmpDataIn_handler(FwIndexType portNum, const Bmp280::Bmp280Data& data) {
-    if (!this->m_active || !this->ensureContainer()) {
+    if (!this->m_active || !this->takeSample(this->m_bmpStride) || !this->ensureContainer()) {
         return;
     }
     const Fw::Time t = this->getTime();
@@ -60,7 +80,7 @@ void SensorDataProducer::bmpDataIn_handler(FwIndexType portNum, const Bmp280::Bm
 }
 
 void SensorDataProducer::imuDataIn_handler(FwIndexType portNum, const MpuImu::ImuData& data) {
-    if (!this->m_active || !this->ensureContainer()) {
+    if (!this->m_active || !this->takeSample(this->m_imuStride) || !this->ensureContainer()) {
         return;
     }
     const Fw::Time t = this->getTime();
@@ -76,6 +96,9 @@ void SensorDataProducer::imuDataIn_handler(FwIndexType portNum, const MpuImu::Im
 
 void SensorDataProducer::START_SERIALIZING_cmdHandler(FwOpcodeType opCode, U32 cmdSeq) {
     this->m_active = true;
+    this->m_bmpStride = 0;
+    this->m_imuStride = 0;
+    this->m_loggedAllocFail = false;
     this->tlmWrite_DpActive(true);
     this->log_ACTIVITY_HI_DpProductionStarted();
     this->cmdResponse_out(opCode, cmdSeq, Fw::CmdResponse::OK);
@@ -87,8 +110,8 @@ void SensorDataProducer::STOP_SERIALIZING_cmdHandler(FwOpcodeType opCode, U32 cm
         this->log_ACTIVITY_LO_DpComplete(static_cast<U32>(this->m_count));
         this->dpSend(this->m_container);
         this->m_containerValid = false;
-        this->m_count = 0;
     }
+    this->m_count = 0;
     this->tlmWrite_DpActive(false);
     this->log_ACTIVITY_HI_DpProductionStopped();
     this->cmdResponse_out(opCode, cmdSeq, Fw::CmdResponse::OK);

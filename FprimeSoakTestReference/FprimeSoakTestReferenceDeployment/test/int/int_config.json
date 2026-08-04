@@ -1,0 +1,23 @@
+{
+  "Svc.CommandDispatcher": "CdhCore.cmdDisp",
+  "Svc.CmdSequencer": "FprimeSoakTestReference.cmdSeq",
+  "Svc.FileDownlink": "FileHandling.fileDownlink",
+  "Svc.FileManager": "FileHandling.fileManager",
+  "Svc.FileUplink": "FileHandling.fileUplink",
+  "Svc.EventManager": "CdhCore.events",
+  "Svc.TlmPacketizer": "CdhCore.tlmSend",
+  "Svc.PrmDb": "FileHandling.prmDb",
+  "Svc.PrmDb.filename": "/home/pi/fprime/PrmDb.dat",
+  "Svc.DpCatalog": "DataProducts.dpCat",
+  "Svc.DpManager": "DataProducts.dpMgr",
+  "Svc.DpWriter": "DataProducts.dpWriter",
+  "Svc.Health": "CdhCore.health",
+  "Rfm69.Rfm69Manager": "Rfm69.rfm69Manager",
+  "Components.SensorDataProducer": "FprimeSoakTestReference.sensorDataProducer",
+  "soak.fsw_tmp": "/tmp",
+  "soak.cmd_timeout_s": 5,
+  "soak.uplink_timeout_s": 10,
+  "soak.uplink_large_timeout_s": 20,
+  "soak.dp_produce_timeout_s": 90,
+  "soak.dp_xmit_timeout_s": 120
+}

@@ -1,0 +1,56 @@
+; Persist defaults for every deployment parameter, then write
+; /home/pi/fprime/PrmDb.dat via PRM_SAVE_FILE.
+;
+;   0x1006000  CdhCore.tlmSend.SECTION_ENABLED
+;   0x1006001  CdhCore.tlmSend.SECTION_CONFIGS
+;   0x4100000  DpCompression.dpCompressProc.CHUNK_SIZE
+;   0x4100001  DpCompression.dpCompressProc.ENABLE
+;   0x4101000  DpCompression.dpZLibCompressor.CompressionLevel
+;   0x4101001  DpCompression.dpZLibCompressor.ZLibBufferSize
+;   0xc0001000 Rfm69.rfm69Manager.DATA_RATE
+;   0xc0001001 Rfm69.rfm69Manager.BANDWIDTH_RX
+;   0xc0001004 Rfm69.rfm69Manager.TX_POWER
+;   0xd0001000 Bmp280.bmpManager.PRESSURE_OVERSAMPLING
+;   0xd0001001 Bmp280.bmpManager.TEMPERATURE_OVERSAMPLING
+;   0xd0001002 Bmp280.bmpManager.SEA_LEVEL_PRESSURE
+;   0xe0001000 MpuImu.imuManager.ACCELEROMETER_RANGE
+;   0xe0001001 MpuImu.imuManager.GYROSCOPE_RANGE
+
+; BMP280
+R00:00:00 Bmp280.bmpManager.PRESSURE_OVERSAMPLING_PRM_SET OVERSAMPLE_1X
+R00:00:01 Bmp280.bmpManager.PRESSURE_OVERSAMPLING_PRM_SAVE
+R00:00:01 Bmp280.bmpManager.TEMPERATURE_OVERSAMPLING_PRM_SET OVERSAMPLE_1X
+R00:00:01 Bmp280.bmpManager.TEMPERATURE_OVERSAMPLING_PRM_SAVE
+R00:00:01 Bmp280.bmpManager.SEA_LEVEL_PRESSURE_PRM_SET 101325.0
+R00:00:01 Bmp280.bmpManager.SEA_LEVEL_PRESSURE_PRM_SAVE
+
+; MPU IMU
+R00:00:01 MpuImu.imuManager.ACCELEROMETER_RANGE_PRM_SET RANGE_2G
+R00:00:01 MpuImu.imuManager.ACCELEROMETER_RANGE_PRM_SAVE
+R00:00:01 MpuImu.imuManager.GYROSCOPE_RANGE_PRM_SET RANGE_250DEG
+R00:00:01 MpuImu.imuManager.GYROSCOPE_RANGE_PRM_SAVE
+
+; RFM69
+R00:00:01 Rfm69.rfm69Manager.DATA_RATE_PRM_SET BR_19200
+R00:00:01 Rfm69.rfm69Manager.DATA_RATE_PRM_SAVE
+R00:00:01 Rfm69.rfm69Manager.BANDWIDTH_RX_PRM_SET BW_500_KHZ
+R00:00:01 Rfm69.rfm69Manager.BANDWIDTH_RX_PRM_SAVE
+R00:00:01 Rfm69.rfm69Manager.TX_POWER_PRM_SET DBM_13
+R00:00:01 Rfm69.rfm69Manager.TX_POWER_PRM_SAVE
+
+; DP compression
+R00:00:01 DpCompression.dpCompressProc.CHUNK_SIZE_PRM_SET 32768
+R00:00:01 DpCompression.dpCompressProc.CHUNK_SIZE_PRM_SAVE
+R00:00:01 DpCompression.dpCompressProc.ENABLE_PRM_SET ENABLED
+R00:00:01 DpCompression.dpCompressProc.ENABLE_PRM_SAVE
+R00:00:01 DpCompression.dpZLibCompressor.COMPRESSIONLEVEL_PRM_SET 6
+R00:00:01 DpCompression.dpZLibCompressor.COMPRESSIONLEVEL_PRM_SAVE
+R00:00:01 DpCompression.dpZLibCompressor.ZLIBBUFFERSIZE_PRM_SET 269000
+R00:00:01 DpCompression.dpZLibCompressor.ZLIBBUFFERSIZE_PRM_SAVE
+
+; TlmPacketizer: save currently loaded defaults (complex array types)
+R00:00:01 CdhCore.tlmSend.SECTION_ENABLED_PRM_SAVE
+R00:00:01 CdhCore.tlmSend.SECTION_CONFIGS_PRM_SAVE
+
+; Write PrmDb.dat to disk
+R00:00:01 FileHandling.prmDb.PRM_SAVE_FILE

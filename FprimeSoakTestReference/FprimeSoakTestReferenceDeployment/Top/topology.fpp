@@ -86,7 +86,9 @@ module FprimeSoakTestReference {
       Rfm69.rfm69Manager.allocate   -> ComCcsds.commsBufferManager.bufferGetCallee
       Rfm69.rfm69Manager.deallocate -> ComCcsds.commsBufferManager.bufferSendIn
 
-      # Aggregated space packets <-> RFM69 (Downlink)
+      # Aggregated space packets <-> RFM69 (Downlink).
+      # ComRetry temporarily removed for A/B — re-add if holdoff/mute deferrals
+      # need same-frame retry before pausing ComQueue.
       ComCcsds.SpacePacketFraming.dataOut       -> Rfm69.rfm69Manager.dataIn
       Rfm69.rfm69Manager.dataReturnOut          -> ComCcsds.SpacePacketFraming.dataReturnIn
       Rfm69.rfm69Manager.comStatusOut           -> ComCcsds.SpacePacketFraming.comStatusIn

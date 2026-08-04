@@ -1,0 +1,4 @@
+; Three NO-OPs to validate RF file uplink + cmdSeq
+R00:00:00 CdhCore.cmdDisp.CMD_NO_OP
+R00:00:01 CdhCore.cmdDisp.CMD_NO_OP
+R00:00:01 CdhCore.cmdDisp.CMD_NO_OP

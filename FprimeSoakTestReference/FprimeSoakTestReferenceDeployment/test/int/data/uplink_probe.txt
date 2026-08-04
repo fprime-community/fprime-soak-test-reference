@@ -1,0 +1,2 @@
+fprime-soak-test-reference RF uplink probe
+Keep this file small so Space Packets stay under the RFM69 255-byte MTU.

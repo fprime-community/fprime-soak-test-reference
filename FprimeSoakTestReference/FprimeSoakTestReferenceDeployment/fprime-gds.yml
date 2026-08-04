@@ -7,3 +7,12 @@ command-line-options:
   framing-selection: raw-space-packet
   gui-port: 5011
   no-zmq:
+  # RFM69 MTU is 255B per Space Packet. Default GDS chunk 256 → SP ~275B overflows
+  # the Feather buffer and desyncs UART. Keep chunk under FW_FILE_BUFFER_MAX_SIZE (220)
+  # and pace ~RF airtime at 19.2 kb/s so TX is done before the next SP hits USB.
+  file-uplink-chunk-size: 100
+  # Pace above flight post-RX TX holdoff (~0.4 s) so chunks land in a quiet RX window.
+  # Single-chunk (<=MTU) uplink is reliable at this pacing. Multi-chunk is not: F´
+  # FileUplink has no ARQ, so one dropped/corrupted DATA packet on the lossy 19.2 kb/s
+  # half-duplex link stalls the whole transfer (widening the cooldown did not help).
+  file-uplink-cooldown: 0.45

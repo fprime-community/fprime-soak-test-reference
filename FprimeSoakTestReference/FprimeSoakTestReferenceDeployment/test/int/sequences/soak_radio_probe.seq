@@ -1,0 +1,7 @@
+; Short sequence used by soak integration tests (uplink + CS_RUN).
+; Exercises cmdDisp over RF via the command sequencer.
+
+R00:00:00 CdhCore.cmdDisp.CMD_NO_OP
+R00:00:01 CdhCore.cmdDisp.CMD_NO_OP_STRING "soak-seq-1"
+R00:00:01 CdhCore.cmdDisp.CMD_NO_OP_STRING "soak-seq-2"
+R00:00:01 CdhCore.cmdDisp.CMD_NO_OP

@@ -24,6 +24,7 @@ telemetry packets FprimeSoakTestReferenceDeploymentPackets {
     CdhCore.events.EventsDropped
     ComCcsds.commsBufferManager.NoBuffs
     ComCcsds.commsBufferManager.EmptyBuffs
+    Rfm69.rfm69Manager.RxCrcErrors
     FprimeSoakTestReference.rateGroup1KHz.RgCycleSlips
     FprimeSoakTestReference.rateGroup10Hz.RgCycleSlips
     FprimeSoakTestReference.rateGroup1Hz.RgCycleSlips
