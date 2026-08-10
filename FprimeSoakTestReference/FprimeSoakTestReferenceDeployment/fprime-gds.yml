@@ -6,7 +6,6 @@ command-line-options:
   uart-baud: 115200
   framing-selection: raw-space-packet
   gui-port: 5011
-  no-zmq:
   # RFM69 MTU is 255B per Space Packet. Default GDS chunk 256 → SP ~275B overflows
   # the Feather buffer and desyncs UART. Keep chunk under FW_FILE_BUFFER_MAX_SIZE (220)
   # and pace ~RF airtime at 19.2 kb/s so TX is done before the next SP hits USB.

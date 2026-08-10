@@ -86,7 +86,7 @@ export SOAK_PI_HOST=pi@raspberrypi.local   # ssh target for fsw.log / uplink che
 pytest -o python_files='test_*.py' -rs \
   --dictionary ../../../../build-artifacts/aarch64-linux/FprimeSoakTestReference_FprimeSoakTestReferenceDeployment/dict/FprimeSoakTestReferenceDeploymentTopologyDictionary.json \
   --deployment-config int_config.json \
-  --no-zmq --tts-port 52051 --tts-addr 127.0.0.1
+  --tts-port 52051 --tts-addr 127.0.0.1
 ```
 
 Bring up a GUI GDS first (`fprime-gds --tts-port 52051 --tts-addr 127.0.0.1`) so
