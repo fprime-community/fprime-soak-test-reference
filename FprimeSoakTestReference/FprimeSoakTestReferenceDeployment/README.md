@@ -25,7 +25,7 @@ cd FprimeSoakTestReferenceDeployment
 fprime-gds
 ```
 
-> **Recommended ground radio setup:** Pair this FSW deployment with a GDS that does UART passthrough to a radio running the firmware on the [`working-for-fprime-gds`](https://github.com/moisesmata/feather-arduino-groundstation/tree/working-for-fprime-gds) branch of [moisesmata/feather-arduino-groundstation](https://github.com/moisesmata/feather-arduino-groundstation/tree/working-for-fprime-gds).
+
 
 ## This deployment uses F' **core subtopologies** for a modular, reusable architecture:
 
