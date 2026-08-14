@@ -69,6 +69,12 @@ int main(int argc, char* argv[]) {
     inputs.mpu.device = "/dev/i2c-1";
     inputs.bmp.device.device = 0; // SPI bus 0
     inputs.bmp.device.select = 0; // SPI chip select 0 (RFM69 uses CS1)
+    // PR #17 Rfm69 subtopology reads SPI/GPIO from topology state (defaults
+    // match this Pi wiring: SPI0/CE1, RST on BCM GPIO26).
+    inputs.rfm69.device.device = 0;
+    inputs.rfm69.device.select = 1;
+    inputs.rfm69.device.resetGpioChip = "/dev/gpiochip0";
+    inputs.rfm69.device.resetGpioPin = 26;
 
     // Setup program shutdown via Ctrl-C
     signal(SIGINT, signalHandler);

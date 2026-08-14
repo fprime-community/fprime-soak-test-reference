@@ -4,15 +4,15 @@ command-line-options:
   communication-selection: uart
   uart-device: /dev/rfm69-feather
   uart-baud: 115200
-  framing-selection: raw-space-packet
+  # Must match pytest --tts-port (and test/int/pytest.ini). Harmless when ZMQ is
+  # on (the default); required if you pass --no-zmq.
+  tts-port: 52051
+  tts-addr: 127.0.0.1
   gui-port: 5011
-  #
-  # RFM69 MTU is 255B per Space Packet. Default GDS chunk 256 → SP ~275B overflows
-  # the Feather buffer and desyncs UART. Keep chunk under FW_FILE_BUFFER_MAX_SIZE (220)
-  # and pace ~RF airtime at 19.2 kb/s so TX is done before the next SP hits USB.
+  # Provided by the fprime-gds-space-packet plugin at ../../../gds-plugin.
+  # `pip install <repo>/gds-plugin` into the GDS venv auto-registers this
+  # framer (setuptools fprime_gds entry point) -- no PYTHONPATH or
+  # FPRIME_GDS_EXTRA_PLUGINS needed. raw-space-packet drops OpCode EVRs.
+  framing-selection: space-packet-fprime
   file-uplink-chunk-size: 100
-  # Pace above flight post-RX TX holdoff (~0.4 s) so chunks land in a quiet RX window.
-  # Single-chunk (<=MTU) uplink is reliable at this pacing. Multi-chunk is not: F´
-  # FileUplink has no ARQ, so one dropped/corrupted DATA packet on the lossy 19.2 kb/s
-  # half-duplex link stalls the whole transfer (widening the cooldown did not help).
-  file-uplink-cooldown: 0.45
+  file-uplink-cooldown: 1.00

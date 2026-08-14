@@ -19,10 +19,8 @@ no custom `conftest.py` — fixtures come from `fprime-gds`; helpers live in
 1. **Tests must not emit warnings.** Events produced *during* pytest land in the
    same GDS log the monitor reads next interval. So the DP tests never issue a
    `STOP_XMIT_CATALOG` while idle (`XmitNotActive`) or a second `START_XMIT`
-   (`DpXmitInProgress`), and the multi-chunk uplink test is skipped (see below).
-2. **`test_07`/`test_08` mirror the monitor's own thresholds** so a regression in
-   memory, buffers, CPU, disk, or health is caught in one interval instead of
-   only after a long trend.
+   (`DpXmitInProgress`). Multi-chunk uplink retries the whole file on stall so
+   a single dropped DATA chunk does not leave FileUplink wedged across intervals.
 
 ## What is covered
 
@@ -30,12 +28,10 @@ no custom `conftest.py` — fixtures come from `fprime-gds`; helpers live in
 |--------|---------|
 | `test_01_link.py` | TM streaming + command NO-OP over RF |
 | `test_02_radio.py` | `TRANSMIT` mute/unmute; `PacketsReceived` |
-| `test_03_file_uplink.py` | Small + sequence single-chunk uplink (multi-chunk skipped) |
+| `test_03_file_uplink.py` | Small + sequence single-chunk uplink + multi-chunk (>MTU) |
 | `test_04_sequence.py` | `CS_VALIDATE` + `CS_RUN` of uplinked sequence |
 | `test_05_dataproducts.py` | Catalog build, serialize → `.fdp`, self-draining catalog xmit |
 | `test_06_soak_interval.py` | Alternates `START`/`STOP_SERIALIZING` each soak run |
-| `test_07_system_resources.py` | `MEMORY_USED`/`NON_VOLATILE_FREE`/`CPU` present & within monitor thresholds |
-| `test_08_buffers_health.py` | All 3 `BufferManager` pools (`NoBuffs`/`EmptyBuffs`=0, `CurrBuffs`≤`TotalBuffs`) + `Health.PingLateWarnings`=0 |
 
 Half-duplex note: file-uplink helpers mute `Rfm69.rfm69Manager.TRANSMIT` for the
 transfer, then re-enable. DP downlink leaves TX enabled (it *is* the downlink).
@@ -68,30 +64,56 @@ and `PrmIdNotFound` (WARNING_LO). Run the `seq/fix_prm_missing.bin` sequence onc
 
 ## Known limitations
 
-* **Multi-chunk file uplink is unreliable and intentionally skipped.** F´
-  `Svc.FileUplink` has no ARQ, so a single dropped/corrupted DATA packet on the
-  lossy half-duplex RF link stalls the whole transfer and emits
-  `InvalidReceiveMode` / `InvalidPacketReceived` (WARNING_HI). Measured on HW;
-  widening `file-uplink-cooldown` did not help. Single-chunk (≤ 255 B MTU)
-  uplink is reliable and covered. Run the skipped case manually while
-  investigating uplink: `pytest --runxfail -k larger_than_mtu` (expect flakes).
+* **Multi-chunk file uplink has no ARQ.** A dropped DATA chunk stalls
+  `Svc.FileUplink`; the soak helper deletes the dest file and retries the whole
+  transfer (see `rf_uplink`). Expect longer runtime than single-chunk cases.
 * **`UnexpectedSequenceCount` (WARNING_LO)** can still appear from genuine RF
   packet loss; it reflects link physics, not a flight defect.
 
-## Local HIL run (GDS already up)
+## Local HIL run
+
+Do **not** start GDS from `fprime-rfm69-feather-groundstation` (that yml sets
+`output-unframed-data: "-"` and empties UART).
+
+The `space-packet-fprime` framer is provided by the `fprime-gds-space-packet`
+plugin at the repo-root `gds-plugin/`. Install it **once** into the GDS venv
+(it auto-registers via a setuptools `fprime_gds` entry point — no `PYTHONPATH`
+or `FPRIME_GDS_EXTRA_PLUGINS`):
 
 ```bash
-cd FprimeSoakTestReference/FprimeSoakTestReferenceDeployment/test/int
-export SOAK_PI_HOST=pi@raspberrypi.local   # ssh target for fsw.log / uplink checks
-pytest -o python_files='test_*.py' -rs \
-  --dictionary ../../../../build-artifacts/aarch64-linux/FprimeSoakTestReference_FprimeSoakTestReferenceDeployment/dict/FprimeSoakTestReferenceDeploymentTopologyDictionary.json \
-  --deployment-config int_config.json \
-  --tts-port 52051 --tts-addr 127.0.0.1
+cd ~/InternshipWork/soak-testing/fprime-soak-test-reference
+source fprime-venv/bin/activate
+pip install -e gds-plugin   # one-time
 ```
 
-Bring up a GUI GDS first (`fprime-gds --tts-port 52051 --tts-addr 127.0.0.1`) so
-`channel.log`/`event.log` populate; the deployment's `fprime-gds.yml` supplies the
-UART device, baud, framing, and file-uplink pacing.
+**Terminal 1 — GDS** (from the soak *deployment* directory), reads this
+directory's `fprime-gds.yml` (uart `/dev/cu.usbmodem11101`, framing
+`space-packet-fprime`, TTS **52051**, chunk 100, cooldown 1.00):
+
+```bash
+cd ~/InternshipWork/soak-testing/fprime-soak-test-reference
+source fprime-venv/bin/activate
+cd FprimeSoakTestReference/FprimeSoakTestReferenceDeployment
+fprime-gds --uart-device /dev/cu.usbmodem11101 --framing-selection space-packet-fprime
+```
+
+Wait until `logs/fprime-gds-*/comm.py.log` shows `APID 4`.
+
+**Terminal 2 — pytest** (soak repo root, same venv):
+
+```bash
+cd ~/InternshipWork/soak-testing/fprime-soak-test-reference
+source fprime-venv/bin/activate
+export SOAK_PI_HOST=pi@192.168.10.2
+pytest -o python_files='test_*.py' -v -rs \
+  FprimeSoakTestReference/FprimeSoakTestReferenceDeployment/test/int \
+  --dictionary ./build-artifacts/aarch64-linux/FprimeSoakTestReference_FprimeSoakTestReferenceDeployment/dict/FprimeSoakTestReferenceDeploymentTopologyDictionary.json \
+  --deployment-config FprimeSoakTestReference/FprimeSoakTestReferenceDeployment/test/int/int_config.json
+```
+
+`pytest.ini` supplies chunk 100, cooldown 1.00, and `--tts-port 52051`. A
+`RateGroupCycleSlip` means FSW lost `SCHED_RR` — restart after
+`setcap cap_sys_nice=eip`. Restart GDS + FSW if GDS has been up for hours.
 
 ## Config knobs (`int_config.json`)
 
@@ -100,7 +122,7 @@ UART device, baud, framing, and file-uplink pacing.
 | `soak.fsw_tmp` | FSW-side uplink destination dir (default `/tmp`) |
 | `soak.cmd_timeout_s` | Command / EVR waits |
 | `soak.uplink_timeout_s` | Single-chunk RF uplink wait |
-| `soak.uplink_large_timeout_s` | Multi-chunk uplink wait (skipped test) |
+| `soak.uplink_large_timeout_s` | Multi-chunk uplink wait |
 | `soak.dp_*_timeout_s` | DP produce / xmit waits |
 
 Env: `SOAK_PI_HOST` (default `pi@raspberrypi.local`), `SOAK_FSW_LOG` (default

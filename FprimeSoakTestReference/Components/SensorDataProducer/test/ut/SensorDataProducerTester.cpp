@@ -121,6 +121,7 @@ void SensorDataProducerTester::testStopSendsPartialContainer() {
     ASSERT_PRODUCT_SEND_SIZE(1);
     ASSERT_EVENTS_DpComplete_SIZE(1);
     ASSERT_EVENTS_DpComplete(0, 3);
+    // Leftover is sent uncompressed so DpCompressProc cannot FATAL FSW.
 
     this->sendStop();
     ASSERT_PRODUCT_SEND_SIZE(0);

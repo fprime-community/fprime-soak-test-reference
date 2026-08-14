@@ -15,6 +15,7 @@ from soak_helpers import (
     fsw_mark,
     pi_put,
     send_cmd,
+    wait_rf_quiet,
 )
 
 INT_DIR = Path(__file__).parent.resolve()
@@ -29,6 +30,8 @@ def test_sequence_validate_and_run(fprime_test_api):
     seq_path = f"{FSW_TMP}/soak_seq_staged.bin"
     pi_put(local, seq_path)
 
+    # Previous tests (especially multi-chunk uplink) leave ComQueue draining.
+    wait_rf_quiet(3.0)
     sequencer = fprime_test_api.get_mnemonic("Svc.CmdSequencer")
     send_cmd(fprime_test_api, f"{sequencer}.CS_VALIDATE", [seq_path])
 

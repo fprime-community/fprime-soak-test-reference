@@ -4,5 +4,5 @@
 	branch = devel
 [submodule "lib/fprime-sensors"]
 	path = lib/fprime-sensors
-	url = https://github.com/moisesmata/fprime-sensors
-	branch = rfm-testing
+	url = https://github.com/fprime-community/fprime-sensors.git
+	branch = devel

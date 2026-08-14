@@ -1,0 +1,15 @@
+# GDS soak virtualenv requirements.
+#
+# soak-setup (nasa/fprime-actions) stages this as artifacts/requirements.txt and
+# runs `pip install -r requirements.txt` from the artifacts dir, so relative
+# paths below resolve against that dir (where the soak workflow lays the plugin
+# down flat as ./gds-plugin).
+#
+# For local HIL runs, install into fprime-venv instead:
+#   pip install fprime-gds && pip install -e gds-plugin
+
+fprime-gds
+
+# The space-packet-fprime framer used by fprime-gds.yml. Auto-registers via its
+# fprime_gds entry point once installed -- no PYTHONPATH / FPRIME_GDS_EXTRA_PLUGINS.
+./gds-plugin
