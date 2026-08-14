@@ -1,2 +1,0 @@
-[fprime_gds]
-space_packet_fprime = gds_space_packet_fprime:SpacePacketFprimeFramerDeframer
