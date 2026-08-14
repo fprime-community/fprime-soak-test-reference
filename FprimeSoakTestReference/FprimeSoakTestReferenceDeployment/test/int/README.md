@@ -73,25 +73,27 @@ and `PrmIdNotFound` (WARNING_LO). Run the `seq/fix_prm_missing.bin` sequence onc
 ## Local HIL run
 
 Do **not** start GDS from `fprime-rfm69-feather-groundstation` (that yml sets
-`output-unframed-data: "-"` and empties UART). Do **not** run bare
-`fprime-gds --framing-selection space-packet-fprime` without the plugin env:
-without it GDS cannot load `space-packet-fprime` and EVRs get dropped.
+`output-unframed-data: "-"` and empties UART).
 
-**Terminal 1 — GDS** (from the soak *deployment* directory):
+The `space-packet-fprime` framer is provided by the `fprime-gds-space-packet`
+plugin at the repo-root `gds-plugin/`. Install it **once** into the GDS venv
+(it auto-registers via a setuptools `fprime_gds` entry point — no `PYTHONPATH`
+or `FPRIME_GDS_EXTRA_PLUGINS`):
+
+```bash
+cd ~/InternshipWork/soak-testing/fprime-soak-test-reference
+source fprime-venv/bin/activate
+pip install -e gds-plugin   # one-time
+```
+
+**Terminal 1 — GDS** (from the soak *deployment* directory), reads this
+directory's `fprime-gds.yml` (uart `/dev/cu.usbmodem11101`, framing
+`space-packet-fprime`, TTS **52051**, chunk 100, cooldown 1.00):
 
 ```bash
 cd ~/InternshipWork/soak-testing/fprime-soak-test-reference
 source fprime-venv/bin/activate
 cd FprimeSoakTestReference/FprimeSoakTestReferenceDeployment
-./run-gds.sh
-```
-
-`run-gds.sh` sources `gds.env` (plugin `PYTHONPATH` + `FPRIME_GDS_EXTRA_PLUGINS`)
-and this directory's `fprime-gds.yml` (uart `/dev/cu.usbmodem11101`, framing
-`space-packet-fprime`, TTS **52051**, chunk 100, cooldown 1.00). Equivalent:
-
-```bash
-source gds.env
 fprime-gds --uart-device /dev/cu.usbmodem11101 --framing-selection space-packet-fprime
 ```
 

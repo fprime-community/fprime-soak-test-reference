@@ -9,9 +9,10 @@ command-line-options:
   tts-port: 52051
   tts-addr: 127.0.0.1
   gui-port: 5011
-  # Needs PYTHONPATH=.../fprime-rfm69-feather-groundstation/tools and
-  # FPRIME_GDS_EXTRA_PLUGINS=gds_space_packet_fprime:SpacePacketFprimeFramerDeframer
-  # (source gds.env or use ./run-gds.sh). raw-space-packet drops OpCode EVRs.
+  # Provided by the fprime-gds-space-packet plugin at ../../../gds-plugin.
+  # `pip install <repo>/gds-plugin` into the GDS venv auto-registers this
+  # framer (setuptools fprime_gds entry point) -- no PYTHONPATH or
+  # FPRIME_GDS_EXTRA_PLUGINS needed. raw-space-packet drops OpCode EVRs.
   framing-selection: space-packet-fprime
   file-uplink-chunk-size: 100
   file-uplink-cooldown: 1.00

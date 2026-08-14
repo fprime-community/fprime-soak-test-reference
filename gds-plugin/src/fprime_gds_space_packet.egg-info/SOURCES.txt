@@ -1,0 +1,9 @@
+pyproject.toml
+setup.py
+src/gds_space_packet_fprime.py
+src/fprime_gds_space_packet.egg-info/PKG-INFO
+src/fprime_gds_space_packet.egg-info/SOURCES.txt
+src/fprime_gds_space_packet.egg-info/dependency_links.txt
+src/fprime_gds_space_packet.egg-info/entry_points.txt
+src/fprime_gds_space_packet.egg-info/requires.txt
+src/fprime_gds_space_packet.egg-info/top_level.txt
