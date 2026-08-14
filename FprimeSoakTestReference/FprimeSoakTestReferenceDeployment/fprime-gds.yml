@@ -2,7 +2,7 @@ command-line-options:
   no-app:
   dictionary: ../../build-artifacts/aarch64-linux/FprimeSoakTestReference_FprimeSoakTestReferenceDeployment/dict/FprimeSoakTestReferenceDeploymentTopologyDictionary.json
   communication-selection: uart
-  uart-device: /dev/cu.usbmodem11101
+  uart-device: /dev/rfm69-feather
   uart-baud: 115200
   # Must match pytest --tts-port (and test/int/pytest.ini). Harmless when ZMQ is
   # on (the default); required if you pass --no-zmq.
