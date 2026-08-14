@@ -33,6 +33,7 @@ telemetry packets FprimeSoakTestReferenceDeploymentPackets {
   # File / sequencer housekeeping — off default radio level (group 2+)
   packet FileSeq id 4 group 2 {
     FileHandling.fileUplink.FilesReceived
+    FileHandling.fileUplink.FileReceivedFailed
     FileHandling.fileUplink.PacketsReceived
     FileHandling.fileDownlink.FilesSent
     FileHandling.fileDownlink.PacketsSent
