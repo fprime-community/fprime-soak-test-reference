@@ -96,7 +96,19 @@ def test_dp_serialize_produce_file(fprime_test_api):
         )
         assert written is not None, "DpWriter.FileWritten not seen"
     finally:
+        # Asserted STOP so a failed mid-test never leaves production running.
+        stop_start = fprime_test_api.get_event_test_history().size()
+        mark_stopped = fsw_mark("DpProductionStopped")
         send_cmd(fprime_test_api, f"{producer}.STOP_SERIALIZING")
+        stopped = await_event_or_fsw(
+            fprime_test_api,
+            f"{producer}.DpProductionStopped",
+            "DpProductionStopped",
+            start=stop_start,
+            timeout_s=CMD_TIMEOUT_S,
+            fsw_before=mark_stopped,
+        )
+        assert stopped is not None, "STOP_SERIALIZING not confirmed (DpProductionStopped)"
 
 
 def test_dp_catalog_xmit_downlink(fprime_test_api):

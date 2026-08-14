@@ -107,6 +107,13 @@ void SensorDataProducer::START_SERIALIZING_cmdHandler(FwOpcodeType opCode, U32 c
 void SensorDataProducer::STOP_SERIALIZING_cmdHandler(FwOpcodeType opCode, U32 cmdSeq) {
     this->m_active = false;
     if (this->m_containerValid) {
+        // Full containers still request ZLIB_DEFLATE. A leftover of a few
+        // records is often incompressible; DpCompressProc then asserts
+        // (compression_buffer.getSize() <= min_compression) and FSW
+        // FATAL-aborts. Write the partial uncompressed so the buffer is
+        // returned without taking that path.
+        this->m_container.setProcTypes(
+            static_cast<Fw::DpCfg::ProcType::SerialType>(Fw::DpCfg::ProcType::PROC_TYPE_NONE));
         this->log_ACTIVITY_LO_DpComplete(static_cast<U32>(this->m_count));
         this->dpSend(this->m_container);
         this->m_containerValid = false;

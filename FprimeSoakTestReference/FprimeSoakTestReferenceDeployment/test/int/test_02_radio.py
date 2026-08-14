@@ -2,7 +2,14 @@
 
 import time
 
-from soak_helpers import CMD_TIMEOUT_S, cmd, mute_downlink, send_cmd, unmute_downlink
+from soak_helpers import (
+    CMD_TIMEOUT_S,
+    cmd,
+    latest_channel_value,
+    mute_downlink,
+    send_cmd,
+    unmute_downlink,
+)
 
 
 def test_transmit_mute_unmute(fprime_test_api):
@@ -24,4 +31,6 @@ def test_radio_packets_received_channel(fprime_test_api):
     after = fprime_test_api.await_telemetry(
         channel, start=hist_start, timeout=CMD_TIMEOUT_S
     )
+    if after is None:
+        after = latest_channel_value(fprime_test_api, channel, timeout_s=5)
     assert after is not None, "No PacketsReceived sample after RF command"

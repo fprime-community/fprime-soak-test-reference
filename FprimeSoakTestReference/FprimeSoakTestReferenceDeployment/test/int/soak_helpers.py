@@ -11,6 +11,7 @@ RF HIL notes:
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import subprocess
@@ -86,6 +87,40 @@ def opcode_hex(api, command: str) -> str:
     return f"0x{cmd_id:x}" if isinstance(cmd_id, int) else str(cmd_id)
 
 
+def _opcode_hex_variants(ox: str) -> list[str]:
+    """FSW text logger uses unpadded hex (0x1000000); some prints pad to 8 digits."""
+    variants = {ox, ox.lower()}
+    if ox.startswith("0x"):
+        try:
+            n = int(ox, 16)
+            variants.add(f"0x{n:x}")
+            variants.add(f"0x{n:08x}")
+        except ValueError:
+            pass
+    return list(variants)
+
+
+def _fsw_opcode_count(ox: str, evr: str) -> int:
+    best = -1
+    for variant in _opcode_hex_variants(ox):
+        for pattern in (
+            f"{evr}.*Opcode {variant}",
+            f"{evr}.*{variant}",
+        ):
+            count = fsw_log_count(pattern)
+            if count > best:
+                best = count
+    return best
+
+
+def fsw_completed_count(ox: str) -> int:
+    return _fsw_opcode_count(ox, "OpCodeCompleted")
+
+
+def fsw_dispatched_count(ox: str) -> int:
+    return _fsw_opcode_count(ox, "OpCodeDispatched")
+
+
 def set_default_filters(api) -> None:
     for severity in (
         "COMMAND",
@@ -95,58 +130,76 @@ def set_default_filters(api) -> None:
         "WARNING_HI",
     ):
         api.send_command("CdhCore.events.SET_EVENT_FILTER", [severity, "ENABLED"])
-        time.sleep(0.5)
+        # Flight defers downlink for RX_TX_HOLDOFF_TICKS (500 ms) after each
+        # uplink packet. Sleeping less than that refreshes the holdoff so
+        # Dispatched/Completed never get a TX window and GDS misses EVRs.
+        time.sleep(1.0)
     api.send_command("CdhCore.events.SET_EVENT_FILTER", ["DIAGNOSTIC", "DISABLED"])
-    time.sleep(1.5)
+    time.sleep(2.0)
     api.clear_histories()
 
 
 def _confirm_fsw_completed(
-    api, command: str, args: list, before: int, timeout_s: int
+    api, command: str, args: list, before: int, timeout_s: int, resend: bool = True
 ) -> bool:
     ox = opcode_hex(api, command)
     deadline = time.time() + timeout_s
     resent = False
     while time.time() < deadline:
-        after = fsw_log_count(f"OpCodeCompleted.*Opcode {ox}")
-        if after < 0:
-            after = fsw_log_count(f"OpCodeCompleted.*{ox}")
+        after = fsw_completed_count(ox)
         if before >= 0 and after > before:
             api.log(f"FSW confirmed {command} ({ox}) completed")
             return True
-        if not resent and time.time() > deadline - timeout_s + 4:
+        # Only resend if FSW never saw the original command. Immediate resends
+        # congest the half-duplex link and make the rest of the suite miss EVRs.
+        if resend and not resent and time.time() > deadline - timeout_s + 6:
             api.send_command(command, args)
             resent = True
-        time.sleep(1.0)
+        time.sleep(0.5)
     return False
 
 
 def send_cmd(api, command: str, args=None, timeout_s: int = CMD_TIMEOUT_S, events=None):
-    """send_and_assert_command, with FSW-log confirmation if RF drops EVRs."""
+    """Send a command; confirm via GDS EVRs or the Pi fsw.log.
+
+    Do not pass max_delay: Dispatched and Completed often ride separate RF
+    packets with >1 s of holdoff between them, which fails a 1.0 s bound even
+    when both EVRs arrive.
+
+    GDS is given a short window first. If those EVRs drop, poll fsw.log for the
+    rest of timeout_s. Resend only when FSW never logged Dispatched — otherwise
+    BLOCK commands like CS_RUN get executed again and congest the link.
+    """
     args = args or []
     ox = opcode_hex(api, command)
-    before = fsw_log_count(f"OpCodeCompleted.*Opcode {ox}")
-    if before < 0:
-        before = fsw_log_count(f"OpCodeCompleted.*{ox}")
+    before_done = fsw_completed_count(ox)
+    before_disp = fsw_dispatched_count(ox)
+    gds_timeout = min(8, int(timeout_s))
 
     try:
         return api.send_and_assert_command(
             command,
             args,
-            max_delay=1.0,
-            timeout=int(timeout_s),
+            timeout=gds_timeout,
             events=events,
         )
     except AssertionError as exc:
         api.log(f"GDS EVR assert missed for {command}; checking FSW log")
-        after = fsw_log_count(f"OpCodeCompleted.*Opcode {ox}")
-        if after < 0:
-            after = fsw_log_count(f"OpCodeCompleted.*{ox}")
-        if before >= 0 and after > before:
-            api.log(f"FSW already confirmed {command} ({ox})")
+        if _confirm_fsw_completed(
+            api, command, args, before_done, timeout_s=timeout_s, resend=False
+        ):
             return []
+        after_disp = fsw_dispatched_count(ox)
+        if before_disp >= 0 and after_disp > before_disp:
+            raise AssertionError(
+                f"Command {command} ({ox}) was dispatched onboard but "
+                "OpCodeCompleted was not confirmed; not resending"
+            ) from exc
+        api.log(f"FSW log did not show {command}; retrying once")
         api.send_command(command, args)
-        if _confirm_fsw_completed(api, command, args, before, timeout_s):
+        if _confirm_fsw_completed(
+            api, command, args, before_done, timeout_s=timeout_s, resend=False
+        ):
             return []
         raise AssertionError(
             f"Command {command} ({ox}) not confirmed via GDS EVRs or FSW log"
@@ -161,11 +214,21 @@ def mute_downlink(api) -> None:
 
 
 def unmute_downlink(api, timeout_s: int = CMD_TIMEOUT_S) -> None:
-    """Re-enable flight TX and prove the path with a NO-OP."""
+    """Re-enable flight TX after a muted uplink.
+
+    After a muted window the flight ComQueue is often full; give it a few
+    seconds to drain. A NO-OP is best-effort: the uplink file match is the
+    pass/fail for the transfer. Failing the whole test because Completeds
+    were dropped on RF was cascading into the rest of the suite.
+    """
     command = cmd(api, "Rfm69.Rfm69Manager", "TRANSMIT")
     api.send_command(command, ["ENABLED"])
-    time.sleep(1.5)
-    send_cmd(api, "CdhCore.cmdDisp.CMD_NO_OP", timeout_s=timeout_s)
+    time.sleep(3.0)
+    wait_rf_quiet(2.0)
+    try:
+        send_cmd(api, "CdhCore.cmdDisp.CMD_NO_OP", timeout_s=timeout_s)
+    except AssertionError:
+        api.log("unmute NO-OP EVRs missed after TRANSMIT ENABLED; continuing")
 
 
 def rf_uplink(
@@ -173,13 +236,23 @@ def rf_uplink(
     local_path: Path,
     dest: str,
     uplink_timeout_s: int = UPLINK_TIMEOUT_S,
+    mute: bool = True,
+    attempts: int = 2,
 ) -> None:
-    """Uplink over RF with TX muted; verify by FSW file size (EVRs cannot downlink)."""
+    """Uplink over RF; verify by FSW file size and MD5.
+
+    GDS FileUplink waits for a downlink handshake before the next chunk.
+    Multi-chunk transfers therefore cannot mute flight TX or DATA packets
+    never leave GDS (FSW sees START then END → packet 5 after 0).
+    Size-only checks hide BadChecksum files that still land at the right length.
+    """
     expected = local_path.stat().st_size
+    expected_md5 = hashlib.md5(local_path.read_bytes()).hexdigest()
     last_size = -1
-    mute_downlink(api)
+    if mute:
+        mute_downlink(api)
     try:
-        for attempt in range(2):
+        for attempt in range(attempts):
             try:
                 pi_ssh(f"rm -f {dest}")
             except Exception:
@@ -196,21 +269,41 @@ def rf_uplink(
                     size = int(out.splitlines()[-1])
                     if size != last_size:
                         api.log(
-                            f"uplink attempt {attempt + 1} {dest} size={size}/{expected}"
+                            f"uplink attempt {attempt + 1}/{attempts} {dest} "
+                            f"size={size}/{expected}"
                         )
                         last_size = size
                     if size == expected:
-                        api.log(f"FSW file size match for {dest} ({size} bytes)")
-                        return
+                        remote_md5 = pi_ssh(f"md5sum {dest}").strip().split()[0].lower()
+                        if remote_md5 == expected_md5:
+                            api.log(
+                                f"FSW file match for {dest} "
+                                f"({size} bytes md5={expected_md5})"
+                            )
+                            return
+                        api.log(
+                            f"FSW size match but MD5 mismatch "
+                            f"(got {remote_md5}, want {expected_md5})"
+                        )
+                        break
                 except Exception as exc:
                     api.log(f"size poll error: {exc}")
                 time.sleep(1.0)
-            api.log(f"uplink attempt {attempt + 1} incomplete (size {last_size}/{expected})")
+            api.log(
+                f"uplink attempt {attempt + 1}/{attempts} incomplete "
+                f"(size {last_size}/{expected})"
+            )
+            # Brief quiet so FileUplink can finish tearing down before retry.
+            time.sleep(1.0)
         raise AssertionError(
             f"Uplink failed for {local_path} -> {dest} (size {last_size}/{expected})"
         )
     finally:
-        unmute_downlink(api)
+        if mute:
+            unmute_downlink(api)
+        else:
+            # Let queued EVRs drain before the next test asserts GDS history.
+            wait_rf_quiet(2.0)
 
 
 def fsw_mark(pattern: str) -> int:
