@@ -96,12 +96,6 @@ telemetry packets FprimeSoakTestReferenceDeploymentPackets {
     DataProducts.dpBufferManager.HiBuffs
     DataProducts.dpBufferManager.NoBuffs
     DataProducts.dpBufferManager.EmptyBuffs
-
-    DpCompression.dpZLibCompressorBufferManager.TotalBuffs
-    DpCompression.dpZLibCompressorBufferManager.CurrBuffs
-    DpCompression.dpZLibCompressorBufferManager.HiBuffs
-    DpCompression.dpZLibCompressorBufferManager.NoBuffs
-    DpCompression.dpZLibCompressorBufferManager.EmptyBuffs
   }
 
   packet Version1 id 22 group 2 {
