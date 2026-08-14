@@ -20,7 +20,6 @@ module FprimeSoakTestReference {
     # sole Svc.Com adapter for the packet radio (no TCP / ComStub).
     import ComCcsds.SpacePacketFraming
     import DataProducts.Subtopology
-    import DpCompression.Subtopology
     import FileHandling.Subtopology
     import MpuImu.Subtopology
     import Bmp280.Subtopology
@@ -102,9 +101,6 @@ module FprimeSoakTestReference {
       # Data Products to File Downlink
       DataProducts.dpCat.fileOut -> FileHandling.fileDownlink.SendFile
       FileHandling.fileDownlink.FileComplete -> DataProducts.dpCat.fileDone
-
-      # Compress containers that request PROC_TYPE_ZLIB_DEFLATE before writing
-      DataProducts.Subtopology.dpWriterProcOut[0] -> DpCompression.Subtopology.dpCompressProcIn
     }
 
     connections RateGroups {
@@ -132,10 +128,9 @@ module FprimeSoakTestReference {
       rateGroup1Hz.RateGroupMemberOut[3] -> DataProducts.dpBufferManager.schedIn
       rateGroup1Hz.RateGroupMemberOut[4] -> DataProducts.dpWriter.schedIn
       rateGroup1Hz.RateGroupMemberOut[5] -> DataProducts.dpMgr.schedIn
-      rateGroup1Hz.RateGroupMemberOut[6] -> DpCompression.Subtopology.dpZLibBufferManagerSchedIn
-      rateGroup1Hz.RateGroupMemberOut[7] -> ComCcsds.comQueue.run
-      rateGroup1Hz.RateGroupMemberOut[8] -> CdhCore.tlmSend.Run
-      rateGroup1Hz.RateGroupMemberOut[9] -> ComCcsds.aggregator.timeout
+      rateGroup1Hz.RateGroupMemberOut[6] -> ComCcsds.comQueue.run
+      rateGroup1Hz.RateGroupMemberOut[7] -> CdhCore.tlmSend.Run
+      rateGroup1Hz.RateGroupMemberOut[8] -> ComCcsds.aggregator.timeout
     }
 
     connections CdhCore_cmdSeq {

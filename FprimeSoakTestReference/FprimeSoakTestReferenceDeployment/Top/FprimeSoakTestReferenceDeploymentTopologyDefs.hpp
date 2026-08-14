@@ -16,7 +16,6 @@
 #include "Svc/Subtopologies/CdhCore/SubtopologyTopologyDefs.hpp"
 #include "Svc/Subtopologies/ComCcsds/SubtopologyTopologyDefs.hpp"
 #include "Svc/Subtopologies/DataProducts/SubtopologyTopologyDefs.hpp"
-#include "Svc/Subtopologies/DpCompression/SubtopologyTopologyDefs.hpp"
 #include "Svc/Subtopologies/FileHandling/SubtopologyTopologyDefs.hpp"
 
 //ComCcsds Enum Includes
@@ -71,7 +70,6 @@ struct TopologyState {
     CdhCore::SubtopologyState cdhCore;           //!< Subtopology state for CdhCore
     ComCcsds::SubtopologyState comCcsds;         //!< Subtopology state for ComCcsds
     DataProducts::SubtopologyState dataProducts;     //!< Subtopology state for DataProducts
-    DpCompression::SubtopologyState dpCompression;   //!< Subtopology state for DpCompression
     FileHandling::SubtopologyState fileHandling;     //!< Subtopology state for FileHandling
     MpuImu::SubtopologyState mpu;                    //!< Subtopology state for MpuImu
     Bmp280::SubtopologyState bmp;                    //!< Subtopology state for Bmp280
